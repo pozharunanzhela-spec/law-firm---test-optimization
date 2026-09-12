@@ -24,7 +24,7 @@
     // run to re-enable just that single component, keeping the four above
     // false throughout this round of testing.
     webgl: {
-      heroShader: false,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
+      heroShader: true,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
       heroButton: false,       // WEBGL_HERO_BUTTON — "Book a call" button edge-shine effect in the hero (WebGL2, initSpecularButton on heroBookCallBtn)
       footerShader: false,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
       footerButton: false,     // WEBGL_FOOTER_BUTTON — footer CTA submit button edge-shine effect (WebGL2, initSpecularButton on ctaSubmitBtn; lazy-loaded)
@@ -52,7 +52,7 @@
     // stop - no requestAnimationFrame loop at all. (Mode 'A', "hero
     // completely disabled", doesn't need a flag here - just use the
     // existing PERF_DIAG.webgl.heroShader:false above.)
-    mode: 'C',
+    mode: 'B',
 
     // TEST 2: force a specific frame rate for the hero shader only,
     // overriding the site's normal 30fps(mobile)/45fps(desktop) cap. Set to
