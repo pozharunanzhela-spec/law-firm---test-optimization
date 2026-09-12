@@ -24,7 +24,7 @@
     // run to re-enable just that single component, keeping the four above
     // false throughout this round of testing.
     webgl: {
-      heroShader: true,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
+      heroShader: false,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
       heroButton: false,       // WEBGL_HERO_BUTTON — "Book a call" button edge-shine effect in the hero (WebGL2, initSpecularButton on heroBookCallBtn)
       footerShader: false,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
       footerButton: false,     // WEBGL_FOOTER_BUTTON — footer CTA submit button edge-shine effect (WebGL2, initSpecularButton on ctaSubmitBtn; lazy-loaded)
@@ -63,7 +63,7 @@
     // drawing buffer, overriding the site's normal cap of
     // min(devicePixelRatio, 1.35). Set to 1, 1.5, or 2. null = use the
     // site's existing default.
-    dpr: 1,
+    dpr: null,
 
     // TEST 4: an independent "render scale" multiplier on top of whatever
     // DPR is in effect - 1 = 100% (normal), 0.75 = 75%, 0.5 = 50%. This
@@ -82,7 +82,20 @@
       noise: true,      // the color-blend + accent-glow noise terms (n1/n2/n3 = 3 of the 6 snoise() calls)
       cornerGlow: true, // the 3 corner-glow blocks (cornerGlow/corner2Glow/corner3Glow - the other 3 snoise() calls, plus 3 length() + 3 smoothstep() calls)
       grain: true       // the film-grain flicker (rand() call + final per-pixel color offset)
-    }
+    },
+
+    // NEW TEST (temporary): isolates whether the cost is the RAF loop
+    // itself, the per-frame JS math/uniform uploads, or the actual
+    // gl.drawArrays() shader execution - with the animation loop otherwise
+    // running completely normally (leave mode:'C' for this test).
+    // 'full' (default) = everything runs, identical to normal behavior.
+    // 'raf'  = TEST A: requestAnimationFrame keeps ticking at the same
+    //          real rate as normal, but render() does nothing else at all -
+    //          no mouseSmooth math, no gl.uniform*() calls, no draw call.
+    // 'calc' = TEST B: RAF + all the normal per-frame JS math and
+    //          gl.uniform*() uploads run exactly as usual, but the final
+    //          gl.drawArrays() call itself is skipped.
+    renderStage: 'full'
   };
 </script>
 <style>
@@ -4041,14 +4054,54 @@
   var __htModeB = (containerId === 'heroShader' && window.HERO_TEST && window.HERO_TEST.mode === 'B');
   var __loopEnabled = loopContinuously && !__htModeB;
 
+  // NEW TEST (temporary): 'full' (default) | 'raf' (TEST A) | 'calc' (TEST B)
+  var __htRenderStage = (containerId === 'heroShader' && window.HERO_TEST && window.HERO_TEST.renderStage) || 'full';
+
+  // Real-time rate counters for this instance - logged once per second so
+  // you get actual measured RAF-callbacks/sec and gl.drawArrays()/sec
+  // instead of an assumption. Counts reset every ~1000ms.
+  var __rateWindowStart = performance.now();
+  var __rafTicksInWindow = 0;
+  var __calcRunsInWindow = 0;
+  var __drawCallsInWindow = 0;
+  function __maybeLogRates(now) {
+    if (containerId !== 'heroShader' || !window.HERO_TEST) return;
+    var windowMs = now - __rateWindowStart;
+    if (windowMs >= 1000) {
+      var sec = windowMs / 1000;
+      console.log('[HERO_DIAG][RATE] renderStage="' + __htRenderStage + '"' +
+        ' | RAF callbacks/sec: ' + (__rafTicksInWindow / sec).toFixed(1) +
+        ' | JS calc+uniform runs/sec: ' + (__calcRunsInWindow / sec).toFixed(1) +
+        ' | gl.drawArrays()/sec: ' + (__drawCallsInWindow / sec).toFixed(1));
+      __rateWindowStart = now;
+      __rafTicksInWindow = 0;
+      __calcRunsInWindow = 0;
+      __drawCallsInWindow = 0;
+    }
+  }
+
   function render(now) {
     rafPending = false;
+    __rafTicksInWindow++; // every entry into render() counts as one RAF callback, throttled or not
+
     if (minFrameInterval && (now - lastRenderTime) < minFrameInterval) {
+      __maybeLogRates(now);
       if (__loopEnabled && inView) { rafPending = true; requestAnimationFrame(render); }
       return;
     }
     lastRenderTime = now;
 
+    // TEST A ('raf'): the loop keeps ticking at the same real rate as
+    // normal (rafPending/requestAnimationFrame below still runs every
+    // frame), but nothing past this point executes - no JS math, no
+    // gl.uniform*() calls, no draw call.
+    if (__htRenderStage === 'raf') {
+      __maybeLogRates(now);
+      if (__loopEnabled && inView) { rafPending = true; requestAnimationFrame(render); }
+      return;
+    }
+
+    __calcRunsInWindow++;
     mouseSmooth.x += (mouseTarget.x - mouseSmooth.x) * 0.05;
     mouseSmooth.y += (mouseTarget.y - mouseSmooth.y) * 0.05;
     gl.uniform2f(uMouse, mouseSmooth.x, mouseSmooth.y);
@@ -4063,7 +4116,12 @@
     // hero, independent of whether the gradient shape itself is moving.
     gl.uniform1f(uGrainTime, (now - startT) / 1000);
 
-    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    // TEST B ('calc'): everything above runs (RAF + JS math + uniform
+    // uploads) but the actual shader execution (gl.drawArrays) is skipped.
+    if (__htRenderStage !== 'calc') {
+      __drawCallsInWindow++;
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
 
     // ===== TEMPORARY DIAGNOSTIC INSTRUMENTATION (part 2 of 2) =====
     // Logs a running frame count for THIS instance every ~120 rendered
@@ -4083,6 +4141,7 @@
     }
     // ===== END TEMPORARY INSTRUMENTATION =====
 
+    __maybeLogRates(now);
     if (__loopEnabled && inView) { rafPending = true; requestAnimationFrame(render); }
   }
 
