@@ -15,10 +15,27 @@
   // To fully restore normal behavior, set enabled:false (or delete this block).
   window.PERF_DIAG = {
     enabled: true,        // master switch
-    threejs: false,       // TEST A — Three.js/WebGL: hero+cta background shader canvas, specular-shine buttons, CTA constellation, Why-Us icons
-    cssAnimations: true, // TEST B — CSS @keyframes/infinite animations (grain textures, logos ticker, arrow bob, reveal transitions, etc.)
-    jsAnimations: true,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
-    interaction: true    // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
+    cssAnimations: false, // TEST B — CSS @keyframes/infinite animations (grain textures, logos ticker, arrow bob, reveal transitions, etc.)
+    jsAnimations: false,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
+    interaction: false,   // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
+    // Per-component WebGL/Three.js toggles (STEP 2 of the WebGL isolation
+    // test). All false = every WebGL system off, matching the "everything
+    // disabled" baseline already tested. Flip exactly ONE to true per test
+    // run to re-enable just that single component, keeping the four above
+    // false throughout this round of testing.
+    webgl: {
+      heroShader: false,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
+      heroButton: false,       // WEBGL_HERO_BUTTON — "Book a call" button edge-shine effect in the hero (WebGL2, initSpecularButton on heroBookCallBtn)
+      footerShader: false,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
+      footerButton: false,     // WEBGL_FOOTER_BUTTON — footer CTA submit button edge-shine effect (WebGL2, initSpecularButton on ctaSubmitBtn; lazy-loaded)
+      ctaConstellation: false, // WEBGL_CTA — the node/line constellation illustration above the footer (Three.js, canvas #ctaConstellationCanvas; lazy-loaded)
+      whyIcons: false          // WEBGL_WHY_US — the 4 rotating face icons in the Why Us section (Three.js x4 separate scenes; lazy-loaded). Note: the Why Us section BACKGROUND is a static image, not WebGL — only these 4 icons are.
+    }
+  };
+  // Helper: true if this system should run - either diagnostic mode is
+  // fully off (site behaves normally), or it's on AND this specific flag is true.
+  window.PERF_DIAG.on = function (flag) {
+    return !window.PERF_DIAG.enabled || flag;
   };
   if (window.PERF_DIAG.enabled && !window.PERF_DIAG.cssAnimations) {
     document.documentElement.classList.add('perf-diag-no-css-anim');
@@ -3628,7 +3645,6 @@
   opts = opts || {};
   var container = document.getElementById(containerId);
   if (!container) return;
-  if (window.PERF_DIAG && window.PERF_DIAG.enabled && !window.PERF_DIAG.threejs) return; // CSS gradient fallback stays visible
 
   var canvas = document.createElement('canvas');
   container.appendChild(canvas);
@@ -4010,24 +4026,26 @@
   }
 
   // ---- Hero: animated, brand green/lime gradient ----
-  initShaderGradient('heroShader', {
-    color1: [0x2a/255, 0x4a/255, 0x12/255],   // olive-green, lighter and closer to the accent lime
-    color2: [0xa8/255, 0xba/255, 0x35/255],   // muted lime (less acidic than pure #c4d435)
-    color3: [0x0a/255, 0x0a/255, 0x0b/255],   // near-black (was dark gray)
-    brightness: 0.95,
-    rotationZ: 30,
-    rotationY: 8,
-    positionX: -1.4,
-    positionZ: 0,
-    uFrequency: 1.4,     // much larger waves
-    uDensity: 0.6,
-    uAmplitude: 0.8,
-    uStrength: 0.5,
-    uSpeed: 0.35,        // slower drift
-    uAccent: 1.0,
-    grain: true,
-    loopDuration: 14
-  }, { animate: true });
+  if (window.PERF_DIAG.on(window.PERF_DIAG.webgl.heroShader)) {
+    initShaderGradient('heroShader', {
+      color1: [0x2a/255, 0x4a/255, 0x12/255],   // olive-green, lighter and closer to the accent lime
+      color2: [0xa8/255, 0xba/255, 0x35/255],   // muted lime (less acidic than pure #c4d435)
+      color3: [0x0a/255, 0x0a/255, 0x0b/255],   // near-black (was dark gray)
+      brightness: 0.95,
+      rotationZ: 30,
+      rotationY: 8,
+      positionX: -1.4,
+      positionZ: 0,
+      uFrequency: 1.4,     // much larger waves
+      uDensity: 0.6,
+      uAmplitude: 0.8,
+      uStrength: 0.5,
+      uSpeed: 0.35,        // slower drift
+      uAccent: 1.0,
+      grain: true,
+      loopDuration: 14
+    }, { animate: true });
+  }
 
   // ---- Why Us: switched to a static reference image (the actual glow-blob
   // photo) instead of the procedural shader - set directly as a background
@@ -4068,18 +4086,20 @@
     else setTimeout(fn, 1);
   }
   var ctaShaderEl = document.getElementById('ctaShader');
-  if (ctaShaderEl && 'IntersectionObserver' in window) {
-    var ctaShaderObserver = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          ctaShaderObserver.disconnect();
-          runLazyInit(function () { initShaderGradient('ctaShader', footerParams, { animate: true }); });
-        }
-      });
-    }, { rootMargin: '200px 0px' });
-    ctaShaderObserver.observe(ctaShaderEl);
-  } else {
-    initShaderGradient('ctaShader', footerParams, { animate: true });
+  if (window.PERF_DIAG.on(window.PERF_DIAG.webgl.footerShader)) {
+    if (ctaShaderEl && 'IntersectionObserver' in window) {
+      var ctaShaderObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (entry.isIntersecting) {
+            ctaShaderObserver.disconnect();
+            runLazyInit(function () { initShaderGradient('ctaShader', footerParams, { animate: true }); });
+          }
+        });
+      }, { rootMargin: '200px 0px' });
+      ctaShaderObserver.observe(ctaShaderEl);
+    } else {
+      initShaderGradient('ctaShader', footerParams, { animate: true });
+    }
   }
 })();
 </script>
@@ -4210,7 +4230,6 @@
     if (!fx) return;
 
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    if (window.PERF_DIAG && window.PERF_DIAG.enabled && !window.PERF_DIAG.threejs) return;
 
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var canvas = document.createElement('canvas');
@@ -4417,11 +4436,13 @@
   // button's initial rect isn't read right after the first button's canvas resize
   // just invalidated layout (that adjacency is what forces the reflow).
   var heroBookCallRect = heroBookCallBtn ? heroBookCallBtn.getBoundingClientRect() : null;
-  initSpecularButton(heroBookCallBtn, specularOpts, heroBookCallRect);
+  if (window.PERF_DIAG.on(window.PERF_DIAG.webgl.heroButton)) {
+    initSpecularButton(heroBookCallBtn, specularOpts, heroBookCallRect);
+  }
   // ctaSubmitBtn sits in the footer, off screen at load - defer its WebGL2
   // context/shader compile until it's actually about to scroll into view,
   // same lazy pattern already used for the other footer-adjacent WebGL work.
-  if (ctaSubmitBtn) {
+  if (ctaSubmitBtn && window.PERF_DIAG.on(window.PERF_DIAG.webgl.footerButton)) {
     if ('IntersectionObserver' in window) {
       var ctaSubmitBtnObserver = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
@@ -4803,7 +4824,7 @@ await new Promise(function (r) {
     var container = document.querySelector('.cta-illustration');
     var canvas = document.getElementById('ctaConstellationCanvas');
     if (!container || !canvas) return;
-    if (window.PERF_DIAG && window.PERF_DIAG.enabled && !window.PERF_DIAG.threejs) return;
+    if (!window.PERF_DIAG.on(window.PERF_DIAG.webgl.ctaConstellation)) return;
 
     // This illustration sits near the very bottom of the page - don't even
     // import three.js or build the scene until it's about to scroll into
@@ -4975,7 +4996,7 @@ await new Promise(function (r) {
 
 <script type="module">
 (function () {
-    if (window.PERF_DIAG && window.PERF_DIAG.enabled && !window.PERF_DIAG.threejs) return;
+    if (!window.PERF_DIAG.on(window.PERF_DIAG.webgl.whyIcons)) return;
 
     // THREE and the materials that depend on it are populated lazily by
     // start() below, right before the Why Us section scrolls into view -
