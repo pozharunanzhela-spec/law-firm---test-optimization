@@ -52,12 +52,12 @@
     // stop - no requestAnimationFrame loop at all. (Mode 'A', "hero
     // completely disabled", doesn't need a flag here - just use the
     // existing PERF_DIAG.webgl.heroShader:false above.)
-    mode: 'B',
+    mode: 'C',
 
     // TEST 2: force a specific frame rate for the hero shader only,
     // overriding the site's normal 30fps(mobile)/45fps(desktop) cap. Set to
     // 60, 30, 20, or 15. null = use the site's existing default caps.
-    fps: null,
+    fps: 60,
 
     // TEST 3: force a specific device-pixel-ratio for the hero shader's
     // drawing buffer, overriding the site's normal cap of
