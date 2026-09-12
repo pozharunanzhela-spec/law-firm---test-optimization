@@ -24,7 +24,7 @@
     // run to re-enable just that single component, keeping the four above
     // false throughout this round of testing.
     webgl: {
-      heroShader: true,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
+      heroShader: false,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
       heroButton: false,       // WEBGL_HERO_BUTTON — "Book a call" button edge-shine effect in the hero (WebGL2, initSpecularButton on heroBookCallBtn)
       footerShader: false,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
       footerButton: false,     // WEBGL_FOOTER_BUTTON — footer CTA submit button edge-shine effect (WebGL2, initSpecularButton on ctaSubmitBtn; lazy-loaded)
@@ -52,7 +52,7 @@
     // stop - no requestAnimationFrame loop at all. (Mode 'A', "hero
     // completely disabled", doesn't need a flag here - just use the
     // existing PERF_DIAG.webgl.heroShader:false above.)
-    mode: 'A',
+    mode: 'C',
 
     // TEST 2: force a specific frame rate for the hero shader only,
     // overriding the site's normal 30fps(mobile)/45fps(desktop) cap. Set to
@@ -4028,7 +4028,13 @@
   // hero instance only, to test 60/30/20/15fps against the same shader.
   var __htFpsOverride = (containerId === 'heroShader' && window.HERO_TEST && window.HERO_TEST.fps) ? window.HERO_TEST.fps : null;
   var minFrameInterval = __htFpsOverride ? (1000 / __htFpsOverride) : (isNarrowViewport ? (1000 / 30) : (1000 / 45));
-  var lastRenderTime = 0;
+  // -Infinity (not 0) so the very first render() call is never mistaken for
+  // "too soon since the last frame" - with now=0 on that first call (as
+  // TEST 1 Mode B and the reduced-motion single-frame path both pass),
+  // lastRenderTime=0 made (now - lastRenderTime) < minFrameInterval true
+  // immediately, silently skipping the one and only frame those paths ever
+  // draw. Every subsequent frame's real fps-cap behavior is unaffected.
+  var lastRenderTime = -Infinity;
 
   // TEST 1 (temporary): Mode 'B' = init + compile + render exactly ONE
   // frame, no requestAnimationFrame loop at all - for the hero instance only.
