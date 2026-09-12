@@ -26,7 +26,7 @@
     webgl: {
       heroShader: false,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
       heroButton: false,       // WEBGL_HERO_BUTTON — "Book a call" button edge-shine effect in the hero (WebGL2, initSpecularButton on heroBookCallBtn)
-      footerShader: false,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
+      footerShader: true,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
       footerButton: false,     // WEBGL_FOOTER_BUTTON — footer CTA submit button edge-shine effect (WebGL2, initSpecularButton on ctaSubmitBtn; lazy-loaded)
       ctaConstellation: true, // WEBGL_CTA — the node/line constellation illustration above the footer (Three.js, canvas #ctaConstellationCanvas; lazy-loaded)
       whyIcons: false          // WEBGL_WHY_US — the 4 rotating face icons in the Why Us section (Three.js x4 separate scenes; lazy-loaded). Note: the Why Us section BACKGROUND is a static image, not WebGL — only these 4 icons are.
