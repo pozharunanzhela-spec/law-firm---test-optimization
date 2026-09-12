@@ -17,7 +17,7 @@
     enabled: true,        // master switch
     cssAnimations: false, // TEST B — CSS @keyframes/infinite animations (grain textures, logos ticker, arrow bob, reveal transitions, etc.)
     jsAnimations: false,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
-    interaction: true,   // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
+    interaction: false,   // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
     // Per-component WebGL/Three.js toggles (STEP 2 of the WebGL isolation
     // test). All false = every WebGL system off, matching the "everything
     // disabled" baseline already tested. Flip exactly ONE to true per test
@@ -28,8 +28,8 @@
       heroButton: false,       // WEBGL_HERO_BUTTON — "Book a call" button edge-shine effect in the hero (WebGL2, initSpecularButton on heroBookCallBtn)
       footerShader: false,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
       footerButton: false,     // WEBGL_FOOTER_BUTTON — footer CTA submit button edge-shine effect (WebGL2, initSpecularButton on ctaSubmitBtn; lazy-loaded)
-      ctaConstellation: false, // WEBGL_CTA — the node/line constellation illustration above the footer (Three.js, canvas #ctaConstellationCanvas; lazy-loaded)
-      whyIcons: true          // WEBGL_WHY_US — the 4 rotating face icons in the Why Us section (Three.js x4 separate scenes; lazy-loaded). Note: the Why Us section BACKGROUND is a static image, not WebGL — only these 4 icons are.
+      ctaConstellation: true, // WEBGL_CTA — the node/line constellation illustration above the footer (Three.js, canvas #ctaConstellationCanvas; lazy-loaded)
+      whyIcons: false          // WEBGL_WHY_US — the 4 rotating face icons in the Why Us section (Three.js x4 separate scenes; lazy-loaded). Note: the Why Us section BACKGROUND is a static image, not WebGL — only these 4 icons are.
     }
   };
   // Helper: true if this system should run - either diagnostic mode is
