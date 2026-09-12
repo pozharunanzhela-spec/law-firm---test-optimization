@@ -80,7 +80,7 @@
     features: {
       mouseSwirl: true, // the pointer-following swirl warp (length/exp/cos/sin block, before the noise)
       noise: true,      // the color-blend + accent-glow noise terms (n1/n2/n3 = 3 of the 6 snoise() calls)
-      cornerGlow: true, // the 3 corner-glow blocks (cornerGlow/corner2Glow/corner3Glow - the other 3 snoise() calls, plus 3 length() + 3 smoothstep() calls)
+      cornerGlow: false, // the 3 corner-glow blocks (cornerGlow/corner2Glow/corner3Glow - the other 3 snoise() calls, plus 3 length() + 3 smoothstep() calls)
       grain: true       // the film-grain flicker (rand() call + final per-pixel color offset)
     },
 
@@ -95,7 +95,7 @@
     // 'calc' = TEST B: RAF + all the normal per-frame JS math and
     //          gl.uniform*() uploads run exactly as usual, but the final
     //          gl.drawArrays() call itself is skipped.
-    renderStage: 'calc'
+    renderStage: 'full'
   };
 </script>
 <style>
