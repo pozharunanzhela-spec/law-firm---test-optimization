@@ -57,13 +57,13 @@
     // TEST 2: force a specific frame rate for the hero shader only,
     // overriding the site's normal 30fps(mobile)/45fps(desktop) cap. Set to
     // 60, 30, 20, or 15. null = use the site's existing default caps.
-    fps: 20,
+    fps: null,
 
     // TEST 3: force a specific device-pixel-ratio for the hero shader's
     // drawing buffer, overriding the site's normal cap of
     // min(devicePixelRatio, 1.35). Set to 1, 1.5, or 2. null = use the
     // site's existing default.
-    dpr: null,
+    dpr: 1,
 
     // TEST 4: an independent "render scale" multiplier on top of whatever
     // DPR is in effect - 1 = 100% (normal), 0.75 = 75%, 0.5 = 50%. This
