@@ -15,9 +15,9 @@
   // To fully restore normal behavior, set enabled:false (or delete this block).
   window.PERF_DIAG = {
     enabled: true,        // master switch
-    cssAnimations: true, // TEST B — CSS @keyframes/infinite animations (grain textures, logos ticker, arrow bob, reveal transitions, etc.)
-    jsAnimations: true,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
-    interaction: true,   // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
+    cssAnimations: false, // TEST B — CSS @keyframes/infinite animations (grain textures, logos ticker, arrow bob, reveal transitions, etc.)
+    jsAnimations: false,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
+    interaction: false,   // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
     // Per-component WebGL/Three.js toggles (STEP 2 of the WebGL isolation
     // test). All false = every WebGL system off, matching the "everything
     // disabled" baseline already tested. Flip exactly ONE to true per test
@@ -25,11 +25,11 @@
     // false throughout this round of testing.
     webgl: {
       heroShader: false,       // WEBGL_HERO — hero section's animated background gradient (raw WebGL, canvas in #heroShader)
-      heroButton: true,       // WEBGL_HERO_BUTTON — "Book a call" button edge-shine effect in the hero (WebGL2, initSpecularButton on heroBookCallBtn)
-      footerShader: true,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
-      footerButton: true,     // WEBGL_FOOTER_BUTTON — footer CTA submit button edge-shine effect (WebGL2, initSpecularButton on ctaSubmitBtn; lazy-loaded)
-      ctaConstellation: true, // WEBGL_CTA — the node/line constellation illustration above the footer (Three.js, canvas #ctaConstellationCanvas; lazy-loaded)
-      whyIcons: true          // WEBGL_WHY_US — the 4 rotating face icons in the Why Us section (Three.js x4 separate scenes; lazy-loaded). Note: the Why Us section BACKGROUND is a static image, not WebGL — only these 4 icons are.
+      heroButton: false,       // WEBGL_HERO_BUTTON — "Book a call" button edge-shine effect in the hero (WebGL2, initSpecularButton on heroBookCallBtn)
+      footerShader: false,     // WEBGL_FOOTER — footer/CTA section's animated background gradient (raw WebGL, canvas in #ctaShader; lazy-loaded near the footer)
+      footerButton: false,     // WEBGL_FOOTER_BUTTON — footer CTA submit button edge-shine effect (WebGL2, initSpecularButton on ctaSubmitBtn; lazy-loaded)
+      ctaConstellation: false, // WEBGL_CTA — the node/line constellation illustration above the footer (Three.js, canvas #ctaConstellationCanvas; lazy-loaded)
+      whyIcons: false          // WEBGL_WHY_US — the 4 rotating face icons in the Why Us section (Three.js x4 separate scenes; lazy-loaded). Note: the Why Us section BACKGROUND is a static image, not WebGL — only these 4 icons are.
     }
   };
   // Helper: true if this system should run - either diagnostic mode is
@@ -40,6 +40,50 @@
   if (window.PERF_DIAG.enabled && !window.PERF_DIAG.cssAnimations) {
     document.documentElement.classList.add('perf-diag-no-css-anim');
   }
+
+  // ===== TEMPORARY HERO-SHADER MICRO-BENCHMARK CONFIG =====
+  // Only meaningful while PERF_DIAG.webgl.heroShader:true and every other
+  // PERF_DIAG category/webgl flag stays false (i.e. "hero shader only").
+  // Nothing here changes the shader's math or visuals when left at these
+  // defaults - every knob below reproduces today's real behavior exactly.
+  window.HERO_TEST = {
+    // TEST 1: 'C' (default) = normal continuous animation. 'B' = initialize
+    // the WebGL context, compile the shader, render exactly ONE frame, and
+    // stop - no requestAnimationFrame loop at all. (Mode 'A', "hero
+    // completely disabled", doesn't need a flag here - just use the
+    // existing PERF_DIAG.webgl.heroShader:false above.)
+    mode: 'C',
+
+    // TEST 2: force a specific frame rate for the hero shader only,
+    // overriding the site's normal 30fps(mobile)/45fps(desktop) cap. Set to
+    // 60, 30, 20, or 15. null = use the site's existing default caps.
+    fps: null,
+
+    // TEST 3: force a specific device-pixel-ratio for the hero shader's
+    // drawing buffer, overriding the site's normal cap of
+    // min(devicePixelRatio, 1.35). Set to 1, 1.5, or 2. null = use the
+    // site's existing default.
+    dpr: null,
+
+    // TEST 4: an independent "render scale" multiplier on top of whatever
+    // DPR is in effect - 1 = 100% (normal), 0.75 = 75%, 0.5 = 50%. This
+    // only changes how many pixels the fragment shader actually computes;
+    // the canvas's on-screen CSS size is fixed by the stylesheet
+    // (.hero-shader canvas{width:100%;height:100%}) and never changes, so
+    // the GPU/browser just scales the smaller buffer up to fill the same box.
+    resolutionScale: 1,
+
+    // TEST 6: disable exactly ONE of these at a time. Each is a real
+    // compile-time #ifdef in the fragment shader source below - setting one
+    // to false produces a genuinely different compiled shader binary with
+    // that GLSL block entirely absent, not a runtime branch around it.
+    features: {
+      mouseSwirl: true, // the pointer-following swirl warp (length/exp/cos/sin block, before the noise)
+      noise: true,      // the color-blend + accent-glow noise terms (n1/n2/n3 = 3 of the 6 snoise() calls)
+      cornerGlow: true, // the 3 corner-glow blocks (cornerGlow/corner2Glow/corner3Glow - the other 3 snoise() calls, plus 3 length() + 3 smoothstep() calls)
+      grain: true       // the film-grain flicker (rand() call + final per-pixel color offset)
+    }
+  };
 </script>
 <style>
   /* Temporary diagnostic override — see PERF_DIAG above. !important so it
@@ -3653,6 +3697,21 @@
            canvas.getContext('experimental-webgl', { preserveDrawingBuffer: false });
   if (!gl) return; // CSS gradient fallback on .hero-shader stays visible
 
+  // ===== TEMPORARY DIAGNOSTIC INSTRUMENTATION - remove after investigation =====
+  // Counts every time this function actually stands up a WebGL context (one
+  // count per containerId it's called with), so a second, unexpected call for
+  // 'heroShader' - from anywhere in the codebase - would show up here as
+  // initCount > 1 instead of silently rendering twice.
+  window.__HERO_DIAG__ = window.__HERO_DIAG__ || { initCount: 0, initContainers: [], instances: {} };
+  window.__HERO_DIAG__.initCount++;
+  window.__HERO_DIAG__.initContainers.push(containerId);
+  var __heroDiagInstanceId = containerId + '#' + window.__HERO_DIAG__.initCount;
+  window.__HERO_DIAG__.instances[__heroDiagInstanceId] = { frames: 0 };
+  console.log('[HERO_DIAG] initShaderGradient() WebGL context created for containerId="' + containerId +
+    '" — this is call #' + window.__HERO_DIAG__.initCount + ' to this function so far. ' +
+    'All containerIds seen: [' + window.__HERO_DIAG__.initContainers.join(', ') + ']');
+  // ===== END TEMPORARY INSTRUMENTATION (part 1 of 2 - see render() below) =====
+
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var animate = opts.animate !== false && !reduceMotion;
 
@@ -3660,8 +3719,19 @@
     'attribute vec2 aPos;' +
     'void main(){ gl_Position = vec4(aPos, 0.0, 1.0); }';
 
+  // Test 6 (temporary): each feature flag becomes a real compile-time
+  // #define, so disabling one produces a genuinely different compiled
+  // shader with that GLSL block entirely absent - not a runtime branch.
+  var __ht = window.HERO_TEST || {};
+  var __htf = __ht.features || {};
+  var __featureDefines =
+    (__htf.mouseSwirl !== false ? '#define FEATURE_MOUSE_SWIRL\n' : '') +
+    (__htf.noise !== false ? '#define FEATURE_NOISE\n' : '') +
+    (__htf.cornerGlow !== false ? '#define FEATURE_CORNER_GLOW\n' : '') +
+    (__htf.grain !== false ? '#define FEATURE_GRAIN\n' : '');
+
   var fragSrc =
-    'precision highp float;' +
+    'precision highp float;' + '\n' + __featureDefines +
     'uniform vec2 uRes;' +
     'uniform float uTime;' +
     'uniform float uGrainTime;' +
@@ -3741,6 +3811,7 @@
     '  uv = mat2(ca, -sa, sa, ca) * uv;' +
     '  uv += vec2(uPosX * 0.12, uPosZ * 0.12);' +
 
+    '\n#ifdef FEATURE_MOUSE_SWIRL\n' +
     '  vec2 rel = uv - uMouse;' +
     '  float distToMouse = length(rel);' +
     '  float swirl = exp(-distToMouse * distToMouse * 2.2) * 1.6;' +
@@ -3748,19 +3819,27 @@
     '  rel = mat2(sc, -ss, ss, sc) * rel;' +
     '  uv = uMouse + rel;' +
     '  uv += uMouse * 0.15;' +
+    '\n#endif\n' +
 
     '  vec2 p = uv * uFreq * uDens;' +
     '  float t = uTime * 0.05;' +
     '  vec2 flow = vec2(t * 1.0, t * 0.6);' +
+
+    '\n#ifdef FEATURE_NOISE\n' +
     '  float n1 = snoise(p + flow) * uAmp;' +
     '  vec2 warped = p + n1 * uStrength;' +
     '  float n2 = snoise(warped * 1.6 - flow * 1.3);' +
     '  float n3 = snoise(warped * 0.5 + flow * 0.4 + 10.0);' +
-
     '  float mixA = smoothstep(-1.1, 1.1, n2);' +
     '  vec3 col = mix(uColor1, uColor2, mixA);' +
     '  float accentScatter = sin(uv.x * uAccentScatterFreq + 1.7) * cos(uv.y * uAccentScatterFreq * 0.85 - 2.3);' +
     '  float mixB = smoothstep(uAccentLo, uAccentHi, n3 + length(uv) * uAccentSpread + accentScatter * uAccentScatterAmt - 0.2) * uAccent;' +
+    '\n#else\n' +
+    '  vec3 col = uColor1;' +
+    '  float mixB = 0.0;' +
+    '\n#endif\n' +
+
+    '\n#ifdef FEATURE_CORNER_GLOW\n' +
     '  float cornerNoise = snoise(rawUV * 5.0 + flow * 0.3 + vec2(3.1, 1.7));' +
     '  vec2 cornerDelta = (rawUV - vec2(uCornerX, uCornerY)) * uRes;' +
     '  float cornerDist = length(cornerDelta) / min(uRes.x, uRes.y) + cornerNoise * 0.09;' +
@@ -3774,14 +3853,19 @@
     '  float corner3Dist = length(corner3Delta) / min(uRes.x, uRes.y) + corner3Noise * 0.09;' +
     '  float corner3Glow = smoothstep(uCorner3Radius, 0.0, corner3Dist) * uCorner3Strength;' +
     '  float glow = max(mixB, max(cornerGlow, max(corner2Glow, corner3Glow)));' +
+    '\n#else\n' +
+    '  float glow = mixB;' +
+    '\n#endif\n' +
     '  col = mix(col, uColor3, smoothstep(0.0, 1.0, glow));' +
 
 
     '  col *= uBrightness;' +
 
     // film grain
+    '\n#ifdef FEATURE_GRAIN\n' +
     '  float g = rand(gl_FragCoord.xy + fract(uGrainTime) * 97.0);' +
     '  col += (g - 0.5) * uGrainStrength;' +
+    '\n#endif\n' +
 
     '  gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);' +
     '}';
@@ -3898,7 +3982,10 @@
   // canvas.style width/height (those are set by CSS via the container), so
   // page layout/sizing is completely unaffected either way.
   var isNarrowViewport = window.matchMedia('(max-width: 768px)').matches;
-  var dpr = Math.min(window.devicePixelRatio || 1, isNarrowViewport ? 1 : 1.35);
+  // TEST 3 (temporary): HERO_TEST.dpr overrides the normal cap below when set,
+  // for the hero instance only - the footer shader keeps its own default.
+  var __htDprOverride = (containerId === 'heroShader' && window.HERO_TEST && window.HERO_TEST.dpr) ? window.HERO_TEST.dpr : null;
+  var dpr = __htDprOverride || Math.min(window.devicePixelRatio || 1, isNarrowViewport ? 1 : 1.35);
   var startT = performance.now();
 
   // 'animate' = does the swirl/shape move and react to the pointer (hero only).
@@ -3937,13 +4024,21 @@
   // draws per second. Motion timing still reads the real clock (uTime/
   // uGrainTime use `now`), so the swirl/grain don't jump or speed up -
   // they just get redrawn less often, which reads as smooth at ~30fps.
-  var minFrameInterval = isNarrowViewport ? (1000 / 30) : (1000 / 45);
+  // TEST 2 (temporary): HERO_TEST.fps overrides this cap when set, for the
+  // hero instance only, to test 60/30/20/15fps against the same shader.
+  var __htFpsOverride = (containerId === 'heroShader' && window.HERO_TEST && window.HERO_TEST.fps) ? window.HERO_TEST.fps : null;
+  var minFrameInterval = __htFpsOverride ? (1000 / __htFpsOverride) : (isNarrowViewport ? (1000 / 30) : (1000 / 45));
   var lastRenderTime = 0;
+
+  // TEST 1 (temporary): Mode 'B' = init + compile + render exactly ONE
+  // frame, no requestAnimationFrame loop at all - for the hero instance only.
+  var __htModeB = (containerId === 'heroShader' && window.HERO_TEST && window.HERO_TEST.mode === 'B');
+  var __loopEnabled = loopContinuously && !__htModeB;
 
   function render(now) {
     rafPending = false;
     if (minFrameInterval && (now - lastRenderTime) < minFrameInterval) {
-      if (loopContinuously && inView) { rafPending = true; requestAnimationFrame(render); }
+      if (__loopEnabled && inView) { rafPending = true; requestAnimationFrame(render); }
       return;
     }
     lastRenderTime = now;
@@ -3963,10 +4058,29 @@
     gl.uniform1f(uGrainTime, (now - startT) / 1000);
 
     gl.drawArrays(gl.TRIANGLES, 0, 3);
-    if (loopContinuously && inView) { rafPending = true; requestAnimationFrame(render); }
+
+    // ===== TEMPORARY DIAGNOSTIC INSTRUMENTATION (part 2 of 2) =====
+    // Logs a running frame count for THIS instance every ~120 rendered
+    // frames (a few seconds). If more than one WebGL loop were actually
+    // running for the same containerId, you'd see two independently
+    // incrementing "[HERO_DIAG] frame ###" lines for the same id interleaved
+    // in the console instead of one steady sequence.
+    var __inst = window.__HERO_DIAG__ && window.__HERO_DIAG__.instances[__heroDiagInstanceId];
+    if (__inst) {
+      __inst.frames++;
+      if (__inst.frames % 120 === 0) {
+        var __active = Object.keys(window.__HERO_DIAG__.instances).length;
+        console.log('[HERO_DIAG] "' + __heroDiagInstanceId + '" frame #' + __inst.frames +
+          ' — active render-loop instances tracked total: ' + __active +
+          ' (' + Object.keys(window.__HERO_DIAG__.instances).join(', ') + ')');
+      }
+    }
+    // ===== END TEMPORARY INSTRUMENTATION =====
+
+    if (__loopEnabled && inView) { rafPending = true; requestAnimationFrame(render); }
   }
 
-  if (loopContinuously && 'IntersectionObserver' in window) {
+  if (__loopEnabled && 'IntersectionObserver' in window) {
     var visibilityObserver = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         inView = entry.isIntersecting;
@@ -3986,6 +4100,10 @@
   // from a scrollbar or DPI/zoom change) would silently wipe it and it
   // would never come back. So resize() repaints it explicitly in that case.
   var resizePending = false;
+  // TEST 4 (temporary): independent render-scale multiplier for the hero
+  // instance only, applied on top of dpr - canvas.style size (CSS, fixed
+  // at 100% of the container by the stylesheet) never changes either way.
+  var __htResScale = (containerId === 'heroShader' && window.HERO_TEST && window.HERO_TEST.resolutionScale) ? window.HERO_TEST.resolutionScale : 1;
   function resize() {
     var w = container.clientWidth, h = container.clientHeight;
     if (w === 0 || h === 0) {
@@ -3996,11 +4114,22 @@
       }
       return;
     }
-    canvas.width = Math.max(1, Math.floor(w * dpr));
-    canvas.height = Math.max(1, Math.floor(h * dpr));
+    canvas.width = Math.max(1, Math.floor(w * dpr * __htResScale));
+    canvas.height = Math.max(1, Math.floor(h * dpr * __htResScale));
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.uniform2f(uRes, canvas.width, canvas.height);
-    if (!loopContinuously) render(0); // repaint the still frame the resize just wiped
+    if (!__loopEnabled && !__htModeB) render(0); // repaint the still frame the resize just wiped
+
+    // TEST 3 (temporary): report the numbers this test needs directly, so
+    // there's no guessing at drawing-buffer size from devtools.
+    if (containerId === 'heroShader' && window.HERO_TEST) {
+      console.log('[HERO_DIAG][TEST3] canvas CSS size (on-screen): ' + w + ' x ' + h + 'px' +
+        ' | devicePixelRatio (browser): ' + (window.devicePixelRatio || 1) +
+        ' | dpr used by shader: ' + dpr + (__htDprOverride ? ' (overridden)' : ' (default cap)') +
+        ' | resolutionScale: ' + __htResScale +
+        ' | drawing-buffer size: ' + canvas.width + ' x ' + canvas.height + 'px' +
+        ' | fragment shader executions per frame: ' + (canvas.width * canvas.height).toLocaleString());
+    }
   }
   resize();
   window.addEventListener('resize', resize);
@@ -4015,11 +4144,11 @@
   canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); });
   canvas.addEventListener('webglcontextrestored', function () { resize(); });
 
-  if (loopContinuously) {
+  if (__loopEnabled) {
     rafPending = true;
     requestAnimationFrame(render);
   } else {
-    // Reduced motion: draw a single still frame, no loop, no grain flicker.
+    // Reduced motion, or TEST 1 Mode B: draw a single still frame, no loop, no grain flicker.
     render(0);
   }
   } // end finishInit
