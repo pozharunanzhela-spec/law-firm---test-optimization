@@ -16,8 +16,8 @@
   window.PERF_DIAG = {
     enabled: true,        // master switch
     cssAnimations: false, // TEST B — CSS @keyframes/infinite animations (grain textures, logos ticker, arrow bob, reveal transitions, etc.)
-    jsAnimations: true,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
-    interaction: true,   // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
+    jsAnimations: false,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
+    interaction: false,   // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
     // Per-component WebGL/Three.js toggles (STEP 2 of the WebGL isolation
     // test). All false = every WebGL system off, matching the "everything
     // disabled" baseline already tested. Flip exactly ONE to true per test
@@ -95,7 +95,7 @@
     // 'calc' = TEST B: RAF + all the normal per-frame JS math and
     //          gl.uniform*() uploads run exactly as usual, but the final
     //          gl.drawArrays() call itself is skipped.
-    renderStage: 'raf'
+    renderStage: 'calc'
   };
 </script>
 <style>
