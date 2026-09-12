@@ -17,8 +17,8 @@
     enabled: true,        // master switch
     threejs: false,       // TEST A — Three.js/WebGL: hero+cta background shader canvas, specular-shine buttons, CTA constellation, Why-Us icons
     cssAnimations: false, // TEST B — CSS @keyframes/infinite animations (grain textures, logos ticker, arrow bob, reveal transitions, etc.)
-    jsAnimations: true,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
-    interaction: false    // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
+    jsAnimations: false,  // TEST C — JS/rAF-driven animations (page-loader percent, nav text scramble, hero count-up numbers)
+    interaction: true    // TEST D — mouse/pointer/scroll-driven effects (case-card cursor spotlight, header scroll class, pinned Why-cube, mobile stages carousel)
   };
   if (window.PERF_DIAG.enabled && !window.PERF_DIAG.cssAnimations) {
     document.documentElement.classList.add('perf-diag-no-css-anim');
