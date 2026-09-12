@@ -79,8 +79,8 @@
     // that GLSL block entirely absent, not a runtime branch around it.
     features: {
       mouseSwirl: true, // the pointer-following swirl warp (length/exp/cos/sin block, before the noise)
-      noise: true,      // the color-blend + accent-glow noise terms (n1/n2/n3 = 3 of the 6 snoise() calls)
-      cornerGlow: false, // the 3 corner-glow blocks (cornerGlow/corner2Glow/corner3Glow - the other 3 snoise() calls, plus 3 length() + 3 smoothstep() calls)
+      noise: false,      // the color-blend + accent-glow noise terms (n1/n2/n3 = 3 of the 6 snoise() calls)
+      cornerGlow: true, // the 3 corner-glow blocks (cornerGlow/corner2Glow/corner3Glow - the other 3 snoise() calls, plus 3 length() + 3 smoothstep() calls)
       grain: true       // the film-grain flicker (rand() call + final per-pixel color offset)
     },
 
